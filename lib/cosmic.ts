@@ -1,5 +1,5 @@
 import { createBucketClient } from '@cosmicjs/sdk'
-import type { Student, Assignment, Report, Recommendation } from '@/types'
+import type { Student, Assignment, Report, Recommendation, Teacher, Counselor, Intervention, PredictionInput, PredictionResult } from '@/types'
 
 export const cosmic = createBucketClient({
   bucketSlug: process.env.COSMIC_BUCKET_SLUG as string,
@@ -34,6 +34,22 @@ export async function getStudentBySlug(slug: string): Promise<Student | null> {
   try {
     const response = await cosmic.objects
       .findOne({ type: 'students', slug })
+      .depth(1);
+    
+    return response.object as Student;
+  } catch (error) {
+    if (hasStatus(error) && error.status === 404) {
+      return null;
+    }
+    throw new Error('Failed to fetch student');
+  }
+}
+
+// Get student by ID
+export async function getStudentById(id: string): Promise<Student | null> {
+  try {
+    const response = await cosmic.objects
+      .findOne({ type: 'students', id })
       .depth(1);
     
     return response.object as Student;
@@ -156,6 +172,43 @@ export async function getStudentRecommendations(studentId: string): Promise<Reco
   }
 }
 
+// Get all counselors
+export async function getCounselors(): Promise<Counselor[]> {
+  try {
+    const response = await cosmic.objects
+      .find({ type: 'counselors' })
+      .props(['id', 'title', 'slug', 'metadata'])
+      .depth(1);
+    
+    return response.objects as Counselor[];
+  } catch (error) {
+    if (hasStatus(error) && error.status === 404) {
+      return [];
+    }
+    throw new Error('Failed to fetch counselors');
+  }
+}
+
+// Get teacher by username
+export async function getTeacherByUsername(username: string): Promise<Teacher | null> {
+  try {
+    const response = await cosmic.objects
+      .find({ 
+        type: 'teachers',
+        'metadata.username': username 
+      })
+      .props(['id', 'title', 'slug', 'metadata'])
+      .depth(1);
+    
+    return response.objects?.[0] as Teacher || null;
+  } catch (error) {
+    if (hasStatus(error) && error.status === 404) {
+      return null;
+    }
+    throw new Error('Failed to fetch teacher');
+  }
+}
+
 // Create a new student
 export async function createStudent(data: {
   title: string;
@@ -177,6 +230,27 @@ export async function createStudent(data: {
       status: 'Active',
       subjects: []
     }
+  });
+}
+
+// Update student with AI prediction
+export async function updateStudentPrediction(
+  studentId: string,
+  prediction: PredictionResult,
+  counselorId?: string
+) {
+  const updateData: any = {
+    dropout_risk: prediction.dropout_risk,
+    risk_score: prediction.risk_score,
+    prediction_date: prediction.prediction_date
+  };
+
+  if (counselorId) {
+    updateData.assigned_counselor = counselorId;
+  }
+
+  return await cosmic.objects.updateOne(studentId, {
+    metadata: updateData
   });
 }
 
@@ -218,20 +292,82 @@ export async function updateAssignmentStatus(
 export async function createRecommendation(data: {
   title: string;
   studentId: string;
-  subject: string;
-  recommendations: string;
+  category: 'Academic' | 'Financial' | 'Emotional' | 'Social' | 'Time Management';
+  recommendation_text: string;
+  rationale: string;
+  priority?: 'High' | 'Medium' | 'Low';
 }) {
   return await cosmic.objects.insertOne({
     type: 'recommendations',
     title: data.title,
     metadata: {
       student: data.studentId,
-      subject: data.subject,
-      recommendations: data.recommendations,
+      category: data.category,
+      recommendation_text: data.recommendation_text,
+      rationale: data.rationale,
       generated_date: new Date().toISOString(),
-      status: 'Active',
-      priority: 'Medium',
-      implemented: false
+      status: 'Pending',
+      priority: data.priority || 'Medium',
+      implemented: false,
+      approved_by_teacher: false
+    }
+  });
+}
+
+// Update recommendation status
+export async function updateRecommendationStatus(
+  recommendationId: string,
+  approved: boolean,
+  teacherNotes?: string
+) {
+  return await cosmic.objects.updateOne(recommendationId, {
+    metadata: {
+      approved_by_teacher: approved,
+      status: approved ? 'Approved' : 'Rejected',
+      teacher_notes: teacherNotes || ''
+    }
+  });
+}
+
+// Create counselor report
+export async function createReport(data: {
+  title: string;
+  studentId: string;
+  report_file_name: string;
+  counselor_name: string;
+  report_type: 'Academic' | 'Behavioral' | 'Financial' | 'Psychological' | 'General';
+  notes: string;
+  counselor_keywords: string[];
+}) {
+  return await cosmic.objects.insertOne({
+    type: 'reports',
+    title: data.title,
+    metadata: {
+      student: data.studentId,
+      report_file: data.report_file_name,
+      upload_date: new Date().toISOString(),
+      report_type: data.report_type,
+      counselor_name: data.counselor_name,
+      notes: data.notes,
+      counselor_keywords: data.counselor_keywords
+    }
+  });
+}
+
+// Create intervention tracking
+export async function createIntervention(data: {
+  title: string;
+  studentId: string;
+  recommendationId: string;
+}) {
+  return await cosmic.objects.insertOne({
+    type: 'interventions',
+    title: data.title,
+    metadata: {
+      student: data.studentId,
+      recommendation: data.recommendationId,
+      status: 'In Progress',
+      start_date: new Date().toISOString()
     }
   });
 }

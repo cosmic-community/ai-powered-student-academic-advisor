@@ -22,6 +22,21 @@ export interface Student extends CosmicObject {
     enrollment_date?: string;
     status?: 'Active' | 'Inactive' | 'Graduated';
     subjects?: string[];
+    // AI Prediction fields
+    dropout_risk?: 'Low' | 'Moderate' | 'High' | 'Very High';
+    risk_score?: number;
+    prediction_date?: string;
+    // Counselor assignment
+    assigned_counselor?: string;
+    counselor_notes?: string;
+    // Academic performance data for prediction
+    attendance_rate?: number;
+    assignment_completion_rate?: number;
+    test_scores?: number[];
+    behavioral_incidents?: number;
+    extracurricular_participation?: boolean;
+    family_income_level?: 'Low' | 'Medium' | 'High';
+    parental_education?: string;
     profile_image?: {
       url: string;
       imgix_url: string;
@@ -55,6 +70,10 @@ export interface Report extends CosmicObject {
     year?: string;
     overall_grade?: number;
     notes?: string;
+    // Counselor report data
+    counselor_keywords?: string[];
+    report_type?: 'Academic' | 'Behavioral' | 'Financial' | 'Psychological' | 'General';
+    counselor_name?: string;
   };
 }
 
@@ -65,9 +84,15 @@ export interface Recommendation extends CosmicObject {
     subject?: string;
     recommendations?: string;
     generated_date?: string;
-    status?: 'Active' | 'Reviewed' | 'Archived';
+    status?: 'Pending' | 'Approved' | 'Rejected' | 'In Progress';
     priority?: 'High' | 'Medium' | 'Low';
     implemented?: boolean;
+    // AI-generated recommendation fields
+    category?: 'Academic' | 'Financial' | 'Emotional' | 'Social' | 'Time Management';
+    recommendation_text?: string;
+    rationale?: string;
+    approved_by_teacher?: boolean;
+    teacher_notes?: string;
   };
 }
 
@@ -77,10 +102,41 @@ export interface Teacher extends CosmicObject {
     email?: string;
     phone?: string;
     subjects?: string[];
+    username?: string;
+    password_hash?: string;
     profile_image?: {
       url: string;
       imgix_url: string;
     };
+  };
+}
+
+export interface Counselor extends CosmicObject {
+  type: 'counselors';
+  metadata: {
+    email?: string;
+    phone?: string;
+    specialization?: string[];
+    username?: string;
+    password_hash?: string;
+    assigned_students?: string[];
+    profile_image?: {
+      url: string;
+      imgix_url: string;
+    };
+  };
+}
+
+export interface Intervention extends CosmicObject {
+  type: 'interventions';
+  metadata: {
+    student?: Student;
+    recommendation?: Recommendation;
+    status?: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+    start_date?: string;
+    completion_date?: string;
+    effectiveness_rating?: number;
+    notes?: string;
   };
 }
 
@@ -91,22 +147,49 @@ export interface CosmicResponse<T> {
   skip: number;
 }
 
-// Type guard for Student objects
+// AI Prediction input data structure
+export interface PredictionInput {
+  student_id: string;
+  attendance_rate: number;
+  current_gpa: number;
+  assignment_completion_rate: number;
+  test_scores_avg: number;
+  behavioral_incidents: number;
+  extracurricular_participation: number; // 0 or 1
+  family_income_level: number; // 1=Low, 2=Medium, 3=High
+  parental_education_level: number; // Years of education
+}
+
+// AI Prediction output
+export interface PredictionResult {
+  student_id: string;
+  dropout_risk: 'Low' | 'Moderate' | 'High' | 'Very High';
+  risk_score: number;
+  confidence: number;
+  prediction_date: string;
+}
+
+// Type guards
 export function isStudent(obj: CosmicObject): obj is Student {
   return obj.type === 'students';
 }
 
-// Type guard for Assignment objects
 export function isAssignment(obj: CosmicObject): obj is Assignment {
   return obj.type === 'assignments';
 }
 
-// Type guard for Report objects
 export function isReport(obj: CosmicObject): obj is Report {
   return obj.type === 'reports';
 }
 
-// Type guard for Recommendation objects
 export function isRecommendation(obj: CosmicObject): obj is Recommendation {
   return obj.type === 'recommendations';
+}
+
+export function isTeacher(obj: CosmicObject): obj is Teacher {
+  return obj.type === 'teachers';
+}
+
+export function isCounselor(obj: CosmicObject): obj is Counselor {
+  return obj.type === 'counselors';
 }
