@@ -9,7 +9,8 @@ export default async function HomePage() {
   ])
 
   const pendingAssignments = assignments.filter(a => a.metadata?.status === 'Pending')
-  const activeRecommendations = recommendations.filter(r => r.metadata?.status === 'Active')
+  // Changed: Filter for 'Approved' status instead of 'Active' (which doesn't exist for recommendations)
+  const activeRecommendations = recommendations.filter(r => r.metadata?.status === 'Approved')
 
   return (
     <div className="min-h-screen bg-gray-50">

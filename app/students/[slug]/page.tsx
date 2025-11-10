@@ -133,12 +133,17 @@ export default async function StudentDetailPage({ params }: PageProps) {
                 <div key={rec.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-semibold text-gray-900">{rec.title}</h3>
+                    {/* Changed: Updated to show correct status values for recommendations */}
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      rec.metadata?.status === 'Active' 
+                      rec.metadata?.status === 'Approved' 
                         ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : rec.metadata?.status === 'In Progress'
+                        ? 'bg-blue-100 text-blue-800'
+                        : rec.metadata?.status === 'Rejected'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {rec.metadata?.status || 'Active'}
+                      {rec.metadata?.status || 'Pending'}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 mb-2">
